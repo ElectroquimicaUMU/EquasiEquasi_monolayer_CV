@@ -7,10 +7,10 @@ import io
 from main import CVsim, FRT
 
 st.set_page_config(layout="wide")
-st.title("Cyclic Voltammetry — EquasiEquasi Support")
+st.title("Cyclic Voltammetry — EirreEirre / EquasiEquasi")
 
 with st.sidebar:
-    surface_model = st.selectbox("Surface model", ["MH", "BV"])
+    surface_model = st.selectbox("Formalism", ["MH", "BV"])
     mechanism = st.selectbox("Mechanism", ["EirreEirre", "EquasiEquasi"])
 
     lambda1 = st.number_input("λ (eV)", value=0.5, step=0.01)
@@ -58,18 +58,18 @@ ax.set_ylabel("Surface excess")
 ax.legend()
 st.pyplot(fig)
 
-st.subheader("Rate constants (k_red & k_ox)")
+st.subheader("Rate constants")
 fig, ax = plt.subplots()
 ax.semilogy(E, res.kMH1red_s[1:], label="MH k_red 1")
 ax.semilogy(E, res.kMH2red_s[1:], label="MH k_red 2")
-ax.semilogy(E, res.kBV1red_s[1:], "--", label="BV k_red 1")
-ax.semilogy(E, res.kBV2red_s[1:], "--", label="BV k_red 2")
 ax.semilogy(E, res.kMH1ox_s[1:], label="MH k_ox 1")
 ax.semilogy(E, res.kMH2ox_s[1:], label="MH k_ox 2")
+ax.semilogy(E, res.kBV1red_s[1:], "--", label="BV k_red 1")
+ax.semilogy(E, res.kBV2red_s[1:], "--", label="BV k_red 2")
 ax.semilogy(E, res.kBV1ox_s[1:], "--", label="BV k_ox 1")
 ax.semilogy(E, res.kBV2ox_s[1:], "--", label="BV k_ox 2")
 ax.set_xlabel("E / V")
-ax.set_ylabel("Rate (s⁻¹)")
+ax.set_ylabel("k (s⁻¹)")
 ax.legend()
 st.pyplot(fig)
 
@@ -78,34 +78,76 @@ rows = []
 for mdl, peaks in res.peaks.items():
     for n in [1, 2]:
         if f"E_peak{n}" in peaks:
-            rows.append({
-                "Model": mdl,
-                "Peak": n,
-                "E (V)": peaks[f"E_peak{n}"],
-                "I": peaks[f"I_peak{n}"]
-            })
+            rows.append(
+                {
+                    "Model": mdl,
+                    "Peak": n,
+                    "E (V)": peaks[f"E_peak{n}"],
+                    "I": peaks[f"I_peak{n}"],
+                }
+            )
 
-st.dataframe(pd.DataFrame(rows))
+if rows:
+    st.dataframe(pd.DataFrame(rows))
+else:
+    st.info("No local peaks detected.")
 
-st.subheader("📥 Download results as .txt")
+st.subheader("Download results as .txt")
+
 
 def download_txt(label, filename, header, data):
     buf = io.StringIO()
     np.savetxt(buf, data, header=header)
     st.download_button(label, buf.getvalue(), file_name=filename, mime="text/plain")
 
-download_txt("Download MH voltammogram", "MH_curve.txt", "E (V)\tPsi", np.column_stack((E, res.IntMH[1:])))
-download_txt("Download BV voltammogram", "BV_curve.txt", "E (V)\tPsi", np.column_stack((E, res.IntBV[1:])))
-download_txt("Download surface excesses", "surface_excess.txt", "E\tfO\tfR\tfI", np.column_stack((E, res.fO[1:], res.fR[1:], res.fI[1:])))
+
 download_txt(
-    "Download MH rates",
-    "MH_rates.txt",
-    "E (V)\tkMH1red_s\tkMH2red_s\tkMH1ox_s\tkMH2ox_s",
-    np.column_stack((E, res.kMH1red_s[1:], res.kMH2red_s[1:], res.kMH1ox_s[1:], res.kMH2ox_s[1:])),
+    "Download MH voltammogram",
+    "MH_curve.txt",
+    "E (V)\tPsi_MH",
+    np.column_stack((E, res.IntMH[1:])),
 )
+
 download_txt(
-    "Download BV rates",
+    "Download BV voltammogram",
+    "BV_curve.txt",
+    "E (V)\tPsi_BV",
+    np.column_stack((E, res.IntBV[1:])),
+)
+
+download_txt(
+    "Download surface excesses",
+    f"surface_excess_{surface_model}_{mechanism}.txt",
+    "E (V)\tfO\tfR\tfI",
+    np.column_stack((E, res.fO[1:], res.fR[1:], res.fI[1:])),
+)
+
+download_txt(
+    "Download MH rate constants",
+    "MH_rates.txt",
+    "E (V)\tk_red1\tk_red2\tk_ox1\tk_ox2",
+    np.column_stack(
+        (
+            E,
+            res.kMH1red_s[1:],
+            res.kMH2red_s[1:],
+            res.kMH1ox_s[1:],
+            res.kMH2ox_s[1:],
+        )
+    ),
+)
+
+download_txt(
+    "Download BV rate constants",
     "BV_rates.txt",
-    "E (V)\tkBV1red_s\tkBV2red_s\tkBV1ox_s\tkBV2ox_s",
-    np.column_stack((E, res.kBV1red_s[1:], res.kBV2red_s[1:], res.kBV1ox_s[1:], res.kBV2ox_s[1:])),
+    "E (V)\tk_red1\tk_red2\tk_ox1\tk_ox2",
+    np.column_stack(
+        (
+            E,
+            res.kBV1red_s[1:],
+            res.kBV2red_s[1:],
+            res.kBV1ox_s[1:],
+            res.kBV2ox_s[1:],
+        )
+    ),
 )
