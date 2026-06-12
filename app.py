@@ -10,7 +10,9 @@ st.set_page_config(layout="wide")
 st.title("Cyclic Voltammetry — EquasiEquasi Support")
 
 with st.sidebar:
-    model = st.selectbox("Model", ["MH", "BV", "MH_EquasiEquasi", "BV_EquasiEquasi"])
+    surface_model = st.selectbox("Surface model", ["MH", "BV"])
+    mechanism = st.selectbox("Mechanism", ["EirreEirre", "EquasiEquasi"])
+
     lambda1 = st.number_input("λ (eV)", value=0.5, step=0.01)
     k01 = st.number_input("k01 (s⁻¹)", value=0.1, step=0.01)
     k02 = st.number_input("k02 (s⁻¹)", value=0.1, step=0.01)
@@ -21,7 +23,20 @@ with st.sidebar:
     Efin = st.number_input("Efin (V)", value=-0.7, step=0.001)
     rate = st.number_input("Scan rate (V/s)", value=0.1, step=0.01)
 
-res = CVsim(lambda1 * FRT, k01, k02, E02, alpha, Es, Ein, Efin, rate, model=model)
+res = CVsim(
+    lambda1 * FRT,
+    k01,
+    k02,
+    E02,
+    alpha,
+    Es,
+    Ein,
+    Efin,
+    rate,
+    surface_model=surface_model,
+    mechanism=mechanism,
+)
+
 E = res.Pot[1:]
 
 st.subheader("Ψ response")
@@ -33,11 +48,13 @@ ax.set_ylabel("Ψ")
 ax.legend()
 st.pyplot(fig)
 
-st.subheader(f"Surface excesses ({model})")
+st.subheader(f"Surface excesses ({surface_model}, {mechanism})")
 fig, ax = plt.subplots()
 ax.plot(E, res.fO[1:], label="fO")
 ax.plot(E, res.fR[1:], label="fR")
 ax.plot(E, res.fI[1:], label="fI")
+ax.set_xlabel("E / V")
+ax.set_ylabel("Surface excess")
 ax.legend()
 st.pyplot(fig)
 
@@ -67,10 +84,11 @@ for mdl, peaks in res.peaks.items():
                 "E (V)": peaks[f"E_peak{n}"],
                 "I": peaks[f"I_peak{n}"]
             })
-df = pd.DataFrame(rows)
-st.dataframe(df)
+
+st.dataframe(pd.DataFrame(rows))
 
 st.subheader("📥 Download results as .txt")
+
 def download_txt(label, filename, header, data):
     buf = io.StringIO()
     np.savetxt(buf, data, header=header)
@@ -79,3 +97,15 @@ def download_txt(label, filename, header, data):
 download_txt("Download MH voltammogram", "MH_curve.txt", "E (V)\tPsi", np.column_stack((E, res.IntMH[1:])))
 download_txt("Download BV voltammogram", "BV_curve.txt", "E (V)\tPsi", np.column_stack((E, res.IntBV[1:])))
 download_txt("Download surface excesses", "surface_excess.txt", "E\tfO\tfR\tfI", np.column_stack((E, res.fO[1:], res.fR[1:], res.fI[1:])))
+download_txt(
+    "Download MH rates",
+    "MH_rates.txt",
+    "E (V)\tkMH1red_s\tkMH2red_s\tkMH1ox_s\tkMH2ox_s",
+    np.column_stack((E, res.kMH1red_s[1:], res.kMH2red_s[1:], res.kMH1ox_s[1:], res.kMH2ox_s[1:])),
+)
+download_txt(
+    "Download BV rates",
+    "BV_rates.txt",
+    "E (V)\tkBV1red_s\tkBV2red_s\tkBV1ox_s\tkBV2ox_s",
+    np.column_stack((E, res.kBV1red_s[1:], res.kBV2red_s[1:], res.kBV1ox_s[1:], res.kBV2ox_s[1:])),
+)
